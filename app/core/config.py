@@ -1,12 +1,14 @@
+from pydantic_settings import BaseSettings
 import os
-from pydantic import BaseModel
 
+class Settings(BaseSettings):
+    OPENAI_API_KEY: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+    GOOGLE_API_KEY: str | None = None
+    TIMEOUT_SECS: int = 25
 
-
-class Settings(BaseModel):
-    ENV: str = os.getenv("ENV", "dev")
-    OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
-    GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY")
-    TIMEOUT_SECS: int = int(os.getenv("TIMEOUT_SECS", "25"))
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings()

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = "http://127.0.0.1:8000/api";   // Use 127.0.0.1 not localhost
 
 export async function analyzeWebsite(payload) {
   const res = await fetch(`${API_BASE}/analyze`, {
