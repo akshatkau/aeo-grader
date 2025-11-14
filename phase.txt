@@ -1,0 +1,226 @@
+✅ AEO GRADER — 6 PHASE PROJECT PLAN
+
+Each phase is small, actionable, and testable.
+
+✅ PHASE 0 — PROJECT INITIALIZATION (Today — 20 minutes)
+
+Goal: Prepare environment + repo + folder structure.
+
+Tasks:
+
+Create project folder AEO.
+
+Create Python virtual environment.
+
+Install FastAPI, Uvicorn, etc.
+
+Create the backend folder structure (the one I gave you).
+
+Create .env + .env.example.
+
+Run uvicorn app.main:app --reload.
+
+Completion Criteria:
+API should respond to GET /health.
+
+✅ PHASE 1 — CORE INPUT PIPELINE + BASIC ANALYZER (1 day)
+
+Goal: Build the combined input API (URL + company + location + product + industry).
+
+Tasks:
+
+Implement the /api/analyze endpoint.
+
+Implement:
+
+crawler
+
+on-page parser
+
+basic scoring engine
+
+basic LLM mock
+
+Return structured JSON with:
+
+SEO score
+
+Technical score (stub)
+
+Content score (stub)
+
+AEO score
+
+Recommendations
+
+Completion Criteria:
+Frontend (POST request) receives correct JSON for any URL.
+
+✅ PHASE 2 — FULL TECHNICAL METRICS (2–3 days)
+
+Goal: Replace stubbed performance metrics with real Lighthouse data.
+
+Tasks:
+
+Install Node and Lighthouse CLI.
+
+Write a Python service that spawns Lighthouse (subprocess).
+
+Parse report JSON:
+
+LCP
+
+CLS
+
+FCP
+
+Mobile performance
+
+Performance score
+
+Store performance metrics in PerformanceSummary.
+
+Completion Criteria:
+Your backend returns real performance metrics for any URL.
+
+✅ PHASE 3 — REAL LLM CONTENT ENGINE (2–3 days)
+
+Goal: Replace placeholder LLM with actual GPT-5 / Claude / Gemini integration.
+
+Tasks:
+
+Add OpenAI/Anthropic API key in .env.
+
+Write robust prompt for:
+
+Intent coverage
+
+E-E-A-T estimation
+
+Readability
+
+Missing sections
+
+AEO analysis
+
+Return structured LLM output.
+
+Optional advanced:
+
+Multi-LLM comparison engine
+
+AI rewrite suggestions
+
+Completion Criteria:
+Backend returns accurate, AI-driven content insights.
+
+✅ PHASE 4 — FRONTEND UI (Parallel & Simple) (1–2 days)
+
+Goal: Create a simple Vue.js frontend to test the API.
+
+Tasks:
+
+Create Vue project.
+
+Create page with:
+
+URL input
+
+Company name
+
+Location
+
+Product
+
+Industry (dropdown)
+
+Submit button
+
+Show results from backend in a formatted UI.
+
+Completion Criteria:
+User can run full AEO scan from the browser.
+
+✅ PHASE 5 — AEO BENCHMARK ENGINE (Week 2)
+
+Goal: Add intelligence and personalization.
+
+Tasks:
+
+Industry-level benchmarks.
+
+Location-based benchmarks.
+
+Competitor suggestions.
+
+Improved scoring formulas.
+
+Keyword contextual analysis.
+
+APIs involved:
+
+Google Knowledge Graph
+
+Geolocation API
+
+Optional: Semrush/Ahrefs
+
+Completion Criteria:
+Scores become context-aware, not generic.
+
+✅ PHASE 6 — REPORTING + PDFs + CLIENT MODE (Week 2–3)
+
+Goal: Make this tool usable for businesses/agencies.
+
+Tasks:
+
+Generate PDF report (Python reportlab or xhtml2pdf).
+
+Add export JSON / CSV.
+
+Add shareable report links.
+
+Add scoring timeline (optional).
+
+Completion Criteria:
+User can download a professional PDF with all AEO results.
+
+✅ PHASE 7 — “NEXT-GEN AEO FEATURES” (Stretch Goals)
+
+These are the features that will make you better than HubSpot:
+
+✅ AI Rewrite Engine
+
+Rewrite content optimized for ranking
+
+Tone control
+
+Product integration
+
+✅ Multi-LLM Semantic Consensus
+
+Compare GPT, Claude, Gemini
+
+Highlight differences
+
+✅ UX/Conversion Rate Score
+
+CTA analysis
+
+Trust signal analysis
+
+Layout heuristics
+
+✅ Bulk AEO Grading
+
+CSV upload
+
+Batch analysis
+
+Excel export for agencies
+
+
+
+
+
+
