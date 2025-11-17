@@ -6,3 +6,7 @@ class AnalyzeRequest(BaseModel):
     location: str = Field("", description="City/State/Country")
     product: str = Field("", description="Primary product or service")
     industry: str = Field("", description="Industry vertical")
+
+class AnalyzeInput(AnalyzeRequest):
+    """Backward compatible alias for PDF/Report endpoint"""
+    pass

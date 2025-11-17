@@ -70,3 +70,61 @@ def analyze_content_llm(content_text, company, product, industry, location):
         start = output.find("{")
         end = output.rfind("}") + 1
         return json.loads(output[start:end])
+
+# --------------------------------------------------------
+# New Feature: AI Rewrite Engine
+# --------------------------------------------------------
+async def rewrite_content(raw_text: str, tone: str = "professional", target_keywords: list[str] = None):
+    """
+    Rewrite content for SEO + clarity + tone control.
+
+    Args:
+        raw_text (str): Content to rewrite
+        tone (str): writing style ("professional", "friendly", "salesy", etc.)
+        target_keywords (list): optional keywords to include in rewrite
+
+    Returns:
+        dict: rewritten text + summary notes
+    """
+
+    if target_keywords is None:
+        target_keywords = []
+
+    prompt = f"""
+You are an SEO rewriting assistant.
+
+Rewrite the following content to improve:
+- Clarity
+- SEO ranking potential
+- Readability
+- Tone: {tone}
+
+If possible, naturally include these keywords:
+{", ".join(target_keywords)}
+
+DO NOT hallucinate new facts.
+
+Return the rewritten text ONLY.
+    
+Content to rewrite:
+-------------------
+{raw_text}
+"""
+
+    try:
+        response = client.responses.create(
+            model="gpt-4o-mini",
+            input=prompt,
+            temperature=0.4  # keep quality consistent
+        )
+
+        rewritten = response.output_text
+        return {
+            "rewritten_text": rewritten,
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "rewritten_text": raw_text
+        }

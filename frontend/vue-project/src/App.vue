@@ -35,14 +35,15 @@
 
             <div class="controls">
               <button type="submit" class="btn primary" :disabled="loading">
-                <span v-if="!loading">Run Scan</span>
-                <span v-else class="spin">Analyzing…</span>
+                  <span v-if="!loading">Run Scan</span>
+                  <span v-else class="spin">Analyzing…</span>
               </button>
+              <button type="button" @click="downloadPdf" class="btn primary">Download PDF</button> 
 
               <button type="button" class="btn ghost" @click="reset" :disabled="loading">
-                Reset
+                  Reset
               </button>
-            </div>
+          </div>
 
             <p class="hint">
               Tip: fill company / location / industry to get richer, contextual results.
@@ -130,9 +131,7 @@
               </div>
             </div>
 
-            <div class="debug-row" v-if="result.debug">
-              <small class="muted">Debug: {{ result.debug.notes || JSON.stringify(result.debug) }}</small>
-            </div>
+            
           </div>
         </transition>
       </section>
@@ -152,7 +151,17 @@
           </div>
         </div>
       </section>
+      <!-- Rewrite Tool - Full Width Below Grid -->
+
+    <!-- Rewrite Tool - Full Width Below Grid -->
+    <section class="rewrite-section" v-if="result">
+      <RewriteTool />
+    </section>
+      <!-- Rewrite Tool - Full Width Below Grid -->
     </main>
+
+    
+
 
     <!-- Toast for errors -->
     <div v-if="error" class="toast">{{ error }}</div>
@@ -165,6 +174,9 @@ import { analyzeWebsite } from './api/aeo';
 
 // logo
 import logoImg from './assets/logo.png?url';
+
+import RewriteTool from "./components/RewriteTool.vue";
+
 
 const logo = logoImg;
 const logoExists = Boolean(logo);
@@ -252,6 +264,32 @@ async function runScan() {
   }
 }
 
+async function downloadPdf() {
+  if (!result.value) {
+    alert("Run analysis first");
+    return;
+  }
+
+  const res = await fetch("http://127.0.0.1:8000/api/report/pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(result.value)   // ✅ send analyzed data, NOT the input
+  });
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "AEO_Report.pdf";
+  a.click();
+
+  window.URL.revokeObjectURL(url);
+}
+
+
+
+
 function reset() {
   form.value = { url: '', company_name: '', location: '', product: '', industry: '' };
   result.value = null;
@@ -331,10 +369,13 @@ function reset() {
 
   width: 100vw !important;
   max-width: 100vw !important;
+  grid-auto-rows: min-content;   /* ⭐ FIX: rows shrink to fit content */
+
 
   padding: 20px 40px;
   box-sizing: border-box;
   overflow: visible;
+  align-items: start;
 }
 
 
@@ -391,6 +432,7 @@ min-width: 380px; }
   width: 100%;
   min-width: 0;     /* FIX grid overflow cutting */
   overflow: visible;
+  height: auto;
 }
 
 .results-inner { padding: 18px; }
@@ -469,7 +511,23 @@ min-width: 380px; }
   .score-row { flex-direction: column; }
   .details-grid { grid-template-columns: 1fr; }
 }
+/* Rewrite section - full width */
+.rewrite-section {
+  width: 100%;
+  max-width: 100%;  /* Change from 100vw */
+  padding: 0 40px 40px 40px;
+  box-sizing: border-box;
+  overflow: visible;  /* Add this */
+}
+
+@media (max-width: 980px) {
+  .rewrite-section {
+    padding: 0 12px 20px 12px;
+  }
+}
 </style>
+
+
 <style>
 html, body {
   margin: 0;
@@ -478,5 +536,29 @@ html, body {
   height: 100%;
   background: linear-gradient(180deg, #071022 0%, #051021 100%);
   overflow-x: hidden;
+  overflow-y: auto;
 }
+
+/* Fix layout cutting issue */
+.main-grid {
+  align-items: start !important;
+}
+
+.results-panel {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.panel {
+  height: auto !important;
+}
+
+.rewrite-panel-full {
+  grid-column: 1 / -1;  /* span both grid columns */
+  width: 100%;
+  margin-top: 0;
+  padding: 0;
+}
+
+
 </style>

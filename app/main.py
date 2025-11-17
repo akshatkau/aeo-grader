@@ -7,6 +7,9 @@ load_dotenv(dotenv_path=env_path, override=True)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.analyze import router as analyze_router
+from app.api.report import router as report_router
+from app.api.rewrite import router as rewrite_router
+
 
 app = FastAPI(title="AEO Grader API", version="0.1.0")
 
@@ -24,3 +27,5 @@ def health():
     return {"status": "ok"}
 
 app.include_router(analyze_router)
+app.include_router(report_router)
+app.include_router(rewrite_router)
