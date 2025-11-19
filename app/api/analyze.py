@@ -1,4 +1,5 @@
 # app/api/analyze.py
+
 from fastapi import APIRouter, HTTPException
 from typing import List
 
@@ -13,6 +14,8 @@ from app.schemas.outputs import (
     ScoreBreakdown,
     KeywordInsights,
     BenchmarkInsights,
+    UXHeuristicInsights,
+    PenaltyReport
 )
 
 from app.services.crawler import fetch_html, parse_onpage
@@ -42,12 +45,6 @@ from app.services.location_benchmarks import apply_location_context
 from app.services.search import get_serp_competitors
 from app.services.llm import analyze_content_llm
 from app.services.benchmarks_v2 import compute_benchmark_deltas
-from app.services.keyword_engine import (
-    extract_keywords,
-    keyword_contextual_score
-)
-
-
 from app.core.config import settings
 
 router = APIRouter(prefix="/api", tags=["analyze"])
@@ -78,13 +75,81 @@ async def analyze(req: AnalyzeRequest):
         req.company_name, req.location, req.product, req.industry
     )
 
-    # 2) Crawl
+    # 2) Crawl with Graceful Fallback
+    html = None
+    crawl_error = None
     try:
         html = await fetch_html(str(req.url), timeout=settings.TIMEOUT_SECS)
-        if not html:
-            raise HTTPException(status_code=400, detail="Failed to fetch HTML from URL")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Unable to crawl URL: {e}")
+        crawl_error = str(e)
+        print(f"Crawl failed: {e}")
+
+    # --- BLOCKING HANDLER START ---
+    if not html:
+        # If HTML is empty (blocked or failed), return a "Zero Score" response immediately.
+        return AnalyzeResponse(
+            input_echo=req.model_dump(),
+            
+            onpage=OnPageSummary(
+                title="Access Denied / Scan Failed",
+                h1="Could not access website",
+                meta_description="The website blocked our scanner. This is common with high-security e-commerce sites (Ajio, Amazon, etc) when scanning without residential proxies.",
+                headings=[],
+                schema_present=False,
+                images_with_alt_ratio=0.0
+            ),
+            
+            # ⭐ FIX: Changed 'score' to 'performance_score'
+            performance=PerformanceSummary(performance_score=0, core_web_vitals={}),
+            
+            content=ContentInsights(
+                intent_coverage=0,
+                readability_grade="N/A",
+                expertise_score=0,
+                missing_sections=[]
+            ),
+            
+            scores=Scores(
+                aeo_score=0, seo_score=0, technical_score=0, content_score=0
+            ),
+            
+            competitors=[],
+            
+            score_breakdown=ScoreBreakdown(
+                seo_weighted=0, technical_weighted=0, content_weighted=0, 
+                brand_weighted=0, competitor_adjustment=0, penalties=[], 
+                ux_score=0, final_aeo=0
+            ),
+            
+            keyword_score=KeywordInsights(
+                keywords_used=0, total_suggested=0, missing_keywords=[], coverage=0
+            ),
+            
+            benchmark=BenchmarkInsights(
+                industry=req.industry, seo_delta=0, technical_delta=0, 
+                content_delta=0, aeo_delta=0, strengths=[], gaps=[]
+            ),
+            
+            ux=UXHeuristicInsights(
+                ux_score=0, cta_present=False, trust_signals_present=False,
+                mobile_friendly=False, readability_ok=False, issues=[]
+            ),
+            
+            penalties=PenaltyReport(
+                total_penalty=0, meta_description_penalty=0, schema_penalty=0,
+                alt_text_penalty=0, cwv_penalty=0, ux_penalty=0, notes=[]
+            ),
+            
+            recommendations=[
+                "The scanner was blocked by the website's firewall.",
+                "Try using a Residential Proxy to bypass bot detection.",
+                f"Debug info: {crawl_error or 'Unknown error'}"
+            ],
+            
+            debug={"error": "Blocked", "details": crawl_error}
+        )
+    # --- BLOCKING HANDLER END ---
+
 
     # 3) Competitor discovery (SERP)
     try:
@@ -96,19 +161,17 @@ async def analyze(req: AnalyzeRequest):
         try:
             competitors_raw = get_serp_competitors(search_query) or []
         except Exception as se:
-            # log/debug in response; don't hard-fail
             competitors_raw = []
-        # normalize to Competitor models (safe)
+        
+        # normalize to Competitor models
         competitors: List[Competitor] = []
         for c in competitors_raw:
             try:
-                # support dicts with title/url
                 if isinstance(c, dict):
                     title = c.get("title") or c.get("name") or c.get("site") or "Unknown"
                     url = c.get("url") or c.get("link") or ""
                     competitors.append(Competitor(title=title, url=url))
                 else:
-                    # if serp service returned strings
                     competitors.append(Competitor(title=str(c), url=""))
             except Exception:
                 continue
@@ -117,25 +180,17 @@ async def analyze(req: AnalyzeRequest):
 
     # 4) On-page parsing
     onpage = parse_onpage(html) or {}
-    # ---------------------------------------------------
+    
     # FIX HEADINGS FORMAT for Pydantic
-    # ---------------------------------------------------
     raw_headings = onpage.get("headings", []) or []
-
-
-
     if isinstance(raw_headings, dict):
-        # flatten dict values → list
         flat_headings = []
         for tag, items in raw_headings.items():
             if isinstance(items, list):
                 flat_headings.extend(items)
-        
         onpage["headings"] = flat_headings
     else:
-        # already list or None
         onpage["headings"] = raw_headings
-
 
     # 5) Keyword extraction (simple)
     extracted_keywords = []
@@ -171,7 +226,7 @@ async def analyze(req: AnalyzeRequest):
     content_score_algo = score_content(intent_coverage, expertise_score)
     aeo_score_algo = score_aeo(seo_score, technical_score, content_score_algo)
 
-    # Prefer valid LLM-provided scores where available (non-50 fallback)
+    # Prefer valid LLM-provided scores where available
     final_content_score = content_score_llm if content_score_llm != 50 else content_score_algo
     final_aeo_score = aeo_score_llm if aeo_score_llm != 50 else aeo_score_algo
 
@@ -196,14 +251,7 @@ async def analyze(req: AnalyzeRequest):
     except Exception:
         pass
 
-    # ---------------------------------------------------
-    # 12) Keyword Extraction + Contextual Scoring (Step-4)
-    # ---------------------------------------------------
-
-    # Basic extracted keywords (debug)
-    extracted_keywords = extract_keywords(onpage.get("content_text", ""))
-
-    # High-intent contextual keyword scoring
+    # 12) Keyword Extraction + Contextual Scoring
     try:
         keyword_score_obj = keyword_contextual_score(
             content_text=onpage.get("content_text", "") or "",
@@ -216,17 +264,13 @@ async def analyze(req: AnalyzeRequest):
             keywords_used=0,
             total_suggested=0,
             missing_keywords=[],
-            coverage=0                # ← FIXED
+            coverage=0
         )
-
 
     # 13) UX heuristics
     try:
         ux_obj = compute_ux_score(onpage, performance)
     except Exception:
-        # fallback simple UX
-        from app.schemas.outputs import UXHeuristicInsights
-
         ux_obj = UXHeuristicInsights(
             ux_score=60,
             cta_present=False,
@@ -236,14 +280,11 @@ async def analyze(req: AnalyzeRequest):
             issues=[],
         )
 
-
     # 14) Penalties
     try:
         penalties_obj = compute_penalties(onpage, performance, llm_raw)
         penalty_total = getattr(penalties_obj, "total_penalty", 0)
     except Exception:
-        from app.schemas.outputs import PenaltyReport
-
         penalties_obj = PenaltyReport(
             total_penalty=0,
             meta_description_penalty=0,
@@ -261,7 +302,6 @@ async def analyze(req: AnalyzeRequest):
             base_scores, penalties_obj, ux_obj
         )
     except Exception:
-        # fallback simple ScoreBreakdown
         score_breakdown = ScoreBreakdown(
             seo_weighted=round(base_scores["seo_score"] * 0.3),
             technical_weighted=round(base_scores["technical_score"] * 0.3),
@@ -273,7 +313,7 @@ async def analyze(req: AnalyzeRequest):
             final_aeo=max(0, round(base_scores["aeo_score"] - penalty_total)),
         )
 
-    # 16) Benchmarks (industry + location deltas)
+    # 16) Benchmarks
     try:
         benchmark_obj: BenchmarkInsights = compute_benchmark_deltas(
             req.industry, base_scores, req.location
@@ -298,17 +338,16 @@ async def analyze(req: AnalyzeRequest):
     ratio = onpage.get("images_with_alt_ratio")
     if ratio is not None and ratio < 0.8:
         recs.append("Improve image alt text coverage (>80% recommended).")
-    for m in llm_raw.get("missing_sections", []) if isinstance(llm_raw.get("missing_sections"), list) else []:
-        recs.append(f"Missing key section: {m}")
-    # optional product-specific suggestion
-    if req.product and any("Explicit product" in s for s in (llm_raw.get("missing_sections") or [])):
+    
+    missing = llm_raw.get("missing_sections", [])
+    if isinstance(missing, list):
+        for m in missing:
+            recs.append(f"Missing key section: {m}")
+    
+    if req.product and any("Explicit product" in s for s in (missing or [])):
         recs.append(f"Mention your product ('{req.product}') more clearly in headings and content.")
 
-    # -------------------------------
     # 18) Build & return final response
-    # -------------------------------
-
-    # Convert float → int safely
     scores_int = {k: int(round(v)) for k, v in base_scores.items()}
 
     return AnalyzeResponse(
@@ -332,7 +371,6 @@ async def analyze(req: AnalyzeRequest):
             missing_sections=llm_raw.get("missing_sections", []),
         ),
 
-        # Final clean integer scores
         scores=Scores(
             seo_score=scores_int["seo_score"],
             technical_score=scores_int["technical_score"],
@@ -355,4 +393,3 @@ async def analyze(req: AnalyzeRequest):
             "base_scores_before_rounding": base_scores,
         },
     )
-

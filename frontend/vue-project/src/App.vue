@@ -16,149 +16,136 @@
     </header>
 
     <main class="main-grid">
-      <!-- Left column: form -->
+    <div class="sidebar-col">
       <section class="panel form-panel">
         <div class="panel-inner">
           <h2 class="panel-title">Run AEO Scan</h2>
-
           <form @submit.prevent="runScan" class="scan-form">
-            <div v-for="(val, key) in form" :key="key" class="field">
-              <label class="label">{{ formatLabel(key) }}</label>
-              <input
-                v-model="form[key]"
-                :placeholder="`Enter ${formatLabel(key).toLowerCase()}`"
-                class="input"
-                :type="key === 'url' ? 'url' : 'text'"
-                required="url" 
-              />
+              <div v-for="(val, key) in form" :key="key" class="field">
+                <label class="label">{{ formatLabel(key) }}</label>
+                <input
+                  v-model="form[key]"
+                  :placeholder="`Enter ${formatLabel(key).toLowerCase()}`"
+                  class="input"
+                  :type="key === 'url' ? 'url' : 'text'"
+                  required="url" 
+                />
+              </div>
+              <div class="controls">
+                <button type="submit" class="btn primary" :disabled="loading">
+                    <span v-if="!loading">Run Scan</span>
+                    <span v-else class="spin">Analyzing…</span>
+                </button>
+                <button type="button" @click="downloadPdf" class="btn primary">Download PDF</button> 
+                <button type="button" class="btn ghost" @click="reset" :disabled="loading">
+                    Reset
+                </button>
             </div>
-
-            <div class="controls">
-              <button type="submit" class="btn primary" :disabled="loading">
-                  <span v-if="!loading">Run Scan</span>
-                  <span v-else class="spin">Analyzing…</span>
-              </button>
-              <button type="button" @click="downloadPdf" class="btn primary">Download PDF</button> 
-
-              <button type="button" class="btn ghost" @click="reset" :disabled="loading">
-                  Reset
-              </button>
-          </div>
-
-            <p class="hint">
-              Tip: fill company / location / industry to get richer, contextual results.
-            </p>
+              <p class="hint">Tip: fill company / location / industry to get richer, contextual results.</p>
           </form>
         </div>
       </section>
+    </div>
 
-      <!-- Right column: results -->
+    <div class="content-col">
       <section class="panel results-panel" v-if="result">
         <transition name="fade">
           <div class="results-inner" key="results">
             <div class="results-header">
-              <div>
-                <h3 class="results-title">{{ result.input_echo.company_name || 'Website Scan' }}</h3>
-                <p class="muted">{{ result.input_echo.url }}</p>
-              </div>
-              <div class="results-meta">
-                <div class="meta-item">
-                  <div class="meta-label">AEO</div>
-                  <div class="meta-value">{{ result.scores.aeo_score }}</div>
+                <div>
+                  <h3 class="results-title">{{ result.input_echo.company_name || 'Website Scan' }}</h3>
+                  <p class="muted">{{ result.input_echo.url }}</p>
                 </div>
-                <div class="meta-item small">
-                  <div class="meta-label">LLM</div>
-                  <div class="meta-value small-text">{{ llmName }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Scores row -->
-            <div class="score-row">
-              <div class="score-card" v-for="card in scoreCards" :key="card.key">
-                <div class="card-top">
-                  <div class="card-title">{{ card.label }}</div>
-                  <div :class="['card-score', scoreColorClass(card.value)]">{{ card.value }}</div>
-                </div>
-                <div class="card-sub">{{ card.subtitle }}</div>
-              </div>
-            </div>
-
-            <div class="details-grid">
-              <div class="detail-card">
-                <h4>On-Page SEO</h4>
-                <dl>
-                  <template v-if="result.onpage">
-                    <div><dt>Title</dt><dd>{{ result.onpage.title || '—' }}</dd></div>
-                    <div><dt>H1</dt><dd>{{ result.onpage.h1 || '—' }}</dd></div>
-                    <div><dt>Meta</dt><dd>{{ result.onpage.meta_description || 'Missing' }}</dd></div>
-                    <div><dt>Schema</dt><dd>{{ result.onpage.schema_present ? 'Yes' : 'No' }}</dd></div>
-                    <div><dt>Alt ratio</dt><dd>{{ formatAlt(result.onpage.images_with_alt_ratio) }}</dd></div>
-                  </template>
-                </dl>
-              </div>
-
-              <div class="detail-card">
-                <h4>Performance</h4>
-                <dl>
-                  <div><dt>Score</dt><dd>{{ result.performance.performance_score ?? '—' }}</dd></div>
-                  <div><dt>LCP</dt><dd>{{ formatSeconds(result.performance.core_web_vitals?.lcp) }}</dd></div>
-                  <div><dt>CLS</dt><dd>{{ result.performance.core_web_vitals?.cls ?? '—' }}</dd></div>
-                  <div><dt>FCP</dt><dd>{{ formatSeconds(result.performance.core_web_vitals?.fcp) }}</dd></div>
-                </dl>
-              </div>
-
-              <div class="detail-card">
-                <h4>Content Insights</h4>
-                <dl>
-                  <div><dt>Intent coverage</dt><dd>{{ pct(result.content.intent_coverage) }}</dd></div>
-                  <div><dt>Readability</dt><dd>{{ result.content.readability_grade }}</dd></div>
-                  <div><dt>E-E-A-T</dt><dd>{{ pct(result.content.expertise_score) }}</dd></div>
-                </dl>
-
-                <div class="tags">
-                  <span v-for="m in result.content.missing_sections" :key="m" class="tag">
-                    {{ m }}
-                  </span>
+                <div class="results-meta">
+                  <div class="meta-item">
+                    <div class="meta-label">AEO</div>
+                    <div class="meta-value">{{ result.scores.aeo_score }}</div>
+                  </div>
+                  <div class="meta-item small">
+                    <div class="meta-label">LLM</div>
+                    <div class="meta-value small-text">{{ llmName }}</div>
+                  </div>
                 </div>
               </div>
 
-              <div class="detail-card">
-                <h4>Recommendations</h4>
-                <ul class="recs">
-                  <li v-for="r in result.recommendations" :key="r">{{ r }}</li>
-                </ul>
+              <div class="score-row">
+                <div class="score-card" v-for="card in scoreCards" :key="card.key">
+                  <div class="card-top">
+                    <div class="card-title">{{ card.label }}</div>
+                    <div :class="['card-score', scoreColorClass(card.value)]">{{ card.value }}</div>
+                  </div>
+                  <div class="card-sub">{{ card.subtitle }}</div>
+                </div>
               </div>
-            </div>
 
-            
+              <div class="details-grid">
+                <div class="detail-card">
+                  <h4>On-Page SEO</h4>
+                  <dl>
+                    <template v-if="result.onpage">
+                      <div><dt>Title</dt><dd>{{ result.onpage.title || '—' }}</dd></div>
+                      <div><dt>H1</dt><dd>{{ result.onpage.h1 || '—' }}</dd></div>
+                      <div><dt>Meta</dt><dd>{{ result.onpage.meta_description || 'Missing' }}</dd></div>
+                      <div><dt>Schema</dt><dd>{{ result.onpage.schema_present ? 'Yes' : 'No' }}</dd></div>
+                      <div><dt>Alt ratio</dt><dd>{{ formatAlt(result.onpage.images_with_alt_ratio) }}</dd></div>
+                    </template>
+                  </dl>
+                </div>
+
+                <div class="detail-card">
+                  <h4>Performance</h4>
+                  <dl>
+                    <div><dt>Score</dt><dd>{{ result.performance.performance_score ?? '—' }}</dd></div>
+                    <div><dt>LCP</dt><dd>{{ formatSeconds(result.performance.core_web_vitals?.lcp) }}</dd></div>
+                    <div><dt>CLS</dt><dd>{{ result.performance.core_web_vitals?.cls ?? '—' }}</dd></div>
+                    <div><dt>FCP</dt><dd>{{ formatSeconds(result.performance.core_web_vitals?.fcp) }}</dd></div>
+                  </dl>
+                </div>
+
+                <div class="detail-card">
+                  <h4>Content Insights</h4>
+                  <dl>
+                    <div><dt>Intent coverage</dt><dd>{{ pct(result.content.intent_coverage) }}</dd></div>
+                    <div><dt>Readability</dt><dd>{{ result.content.readability_grade }}</dd></div>
+                    <div><dt>E-E-A-T</dt><dd>{{ pct(result.content.expertise_score) }}</dd></div>
+                  </dl>
+
+                  <div class="tags">
+                    <span v-for="m in result.content.missing_sections" :key="m" class="tag">
+                      {{ m }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="detail-card">
+                  <h4>Recommendations</h4>
+                  <ul class="recs">
+                    <li v-for="r in result.recommendations" :key="r">{{ r }}</li>
+                  </ul>
+                </div>
+              </div>
           </div>
         </transition>
       </section>
-
-      <!-- Placeholder results when empty -->
       <section class="panel results-panel placeholder" v-else>
         <div class="panel-inner placeholder-inner">
           <h3 class="placeholder-title">Results will appear here</h3>
           <p class="muted">Run a scan to see AEO score, technical metrics and content insights.</p>
           <div class="illustration" aria-hidden="true">
-            <svg width="220" height="120" viewBox="0 0 220 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="10" width="216" height="98" rx="10" fill="#0f1724" stroke="#1f2937"/>
-              <rect x="16" y="28" width="80" height="18" rx="4" fill="#071024"/>
-              <rect x="16" y="54" width="180" height="10" rx="3" fill="#071024"/>
-              <rect x="16" y="70" width="140" height="10" rx="3" fill="#071024"/>
-            </svg>
-          </div>
+              <svg width="220" height="120" viewBox="0 0 220 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="10" width="216" height="98" rx="10" fill="#0f1724" stroke="#1f2937"/>
+                <rect x="16" y="28" width="80" height="18" rx="4" fill="#071024"/>
+                <rect x="16" y="54" width="180" height="10" rx="3" fill="#071024"/>
+                <rect x="16" y="70" width="140" height="10" rx="3" fill="#071024"/>
+              </svg>
+            </div>
         </div>
       </section>
-      <!-- Rewrite Tool - Full Width Below Grid -->
-
-    <!-- Rewrite Tool - Full Width Below Grid -->
-    <section class="rewrite-section" v-if="result">
-      <RewriteTool />
-    </section>
-      <!-- Rewrite Tool - Full Width Below Grid -->
-    </main>
+      <section class="rewrite-section" v-if="result">
+        <RewriteTool />
+      </section>
+    </div>
+</main>
 
     
 
@@ -378,7 +365,14 @@ function reset() {
   align-items: start;
 }
 
-
+/* ADD THIS NEW CLASS for the right column wrapper */
+.content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;        /* Adds space between Results and Rewrite Tool */
+  width: 100%;
+  min-width: 0;     /* Critical for grid text wrapping */
+}
 
 
 .panel {
@@ -512,12 +506,12 @@ min-width: 380px; }
   .details-grid { grid-template-columns: 1fr; }
 }
 /* Rewrite section - full width */
+/* 👇 UPDATE rewrite-section to remove fixed widths if any */
 .rewrite-section {
   width: 100%;
-  max-width: 100%;  /* Change from 100vw */
-  padding: 0 40px 40px 40px;
+  /* Remove padding if it's double-padding with the component */
+  padding: 0; 
   box-sizing: border-box;
-  overflow: visible;  /* Add this */
 }
 
 @media (max-width: 980px) {
@@ -533,7 +527,8 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 100%;
   background: linear-gradient(180deg, #071022 0%, #051021 100%);
   overflow-x: hidden;
   overflow-y: auto;
